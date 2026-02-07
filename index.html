@@ -46,7 +46,6 @@ button {
   height: 100%;
   width: 0%;
   background: #6a4bc3;
-  border-radius: 8px;
   transition: width 0.3s;
 }
 .honeypot { display: none; }
@@ -63,14 +62,14 @@ button {
     Obrigado por celebrar conosco ❤️<br>
     Clique no botão abaixo para tirar sua foto ou gravar seu vídeo!
   </p>
-  <button id="startCamera" class="start" aria-label="Começar captura">📸 Começar</button>
+  <button id="startCamera" class="start">📸 Começar</button>
 </div>
 
 <!-- ESCOLHA DE CÂMERA -->
 <div id="cameraChoice" class="hidden">
   <p>Escolha a câmera:</p>
-  <button onclick="abrirCamera('user')" aria-label="Câmera frontal">📷 Frontal</button>
-  <button onclick="abrirCamera('environment')" aria-label="Câmera traseira">📸 Traseira</button>
+  <button onclick="abrirCamera('user')">📷 Frontal</button>
+  <button onclick="abrirCamera('environment')">📸 Traseira</button>
 </div>
 
 <!-- FORMULÁRIO -->
@@ -84,7 +83,7 @@ button {
   <input type="hidden" name="_captcha" value="false">
   <input type="hidden" name="_subject" value="Casamento Eduardo & Amanda - Mídia enviada">
 
-  <!-- Honeypot para bots -->
+  <!-- Honeypot -->
   <input type="text" name="_honey" class="honeypot" tabindex="-1" autocomplete="off">
 
   <input
@@ -95,24 +94,22 @@ button {
     capture
     class="hidden"
     required
-    aria-label="Escolher arquivo de foto ou vídeo"
   >
 
-  <div id="preview" class="preview hidden" aria-live="polite"></div>
+  <div id="preview" class="preview hidden"></div>
 
   <div id="actions" class="hidden">
-    <button type="submit" class="send" aria-label="Enviar mídia">📤 Enviar</button>
-    <button type="button" class="retry" onclick="resetar()" aria-label="Refazer captura">🔄 Refazer</button>
+    <button type="submit" class="send">📤 Enviar</button>
+    <button type="button" class="retry" onclick="resetar()">🔄 Refazer</button>
   </div>
 
-  <!-- Barra de progresso -->
   <div class="progress-bar hidden">
     <div class="progress" id="progress"></div>
   </div>
 </form>
 
 <!-- SUCESSO -->
-<div id="success" class="success hidden" aria-live="polite">
+<div id="success" class="success hidden">
   ✅ <strong>SALVO E ENVIADO!</strong><br><br>
   Muito obrigado por compartilhar esse momento especial 💖<br>
   Sua foto já pode aparecer na TV!
@@ -132,25 +129,29 @@ const form = document.getElementById("form");
 const progressBar = document.querySelector(".progress-bar");
 const progress = document.getElementById("progress");
 
-// Mostrar escolha de câmera após clique
+// Início
 startButton.onclick = () => {
   welcome.classList.add("hidden");
   cameraChoice.classList.remove("hidden");
 };
 
-// Abrir câmera conforme escolha
+// Abrir câmera
 function abrirCamera(facingMode) {
   cameraChoice.classList.add("hidden");
   form.classList.remove("hidden");
-
-  file.setAttribute('capture', facingMode); // frente ou traseira
+  file.setAttribute("capture", facingMode);
   file.click();
 }
 
-// Pré-visualização da foto/vídeo
+// Arquivo selecionado OU cancelado
 file.onchange = () => {
   const f = file.files[0];
-  if (!f) return;
+
+  // Cancelou
+  if (!f) {
+    resetar();
+    return;
+  }
 
   if (f.size > 30 * 1024 * 1024) {
     alert("O arquivo deve ter no máximo 30MB.");
@@ -160,10 +161,10 @@ file.onchange = () => {
 
   preview.innerHTML = "";
   let media;
+
   if (f.type.startsWith("image")) {
     media = document.createElement("img");
     media.src = URL.createObjectURL(f);
-    media.alt = "Pré-visualização da foto enviada";
   } else {
     media = document.createElement("video");
     media.src = URL.createObjectURL(f);
@@ -173,10 +174,9 @@ file.onchange = () => {
   preview.appendChild(media);
   preview.classList.remove("hidden");
   actions.classList.remove("hidden");
-  setTimeout(() => preview.scrollIntoView({ behavior: "smooth" }), 300);
 };
 
-// Resetar envio
+// Reset geral
 function resetar() {
   file.value = "";
   preview.innerHTML = "";
@@ -184,50 +184,39 @@ function resetar() {
   actions.classList.add("hidden");
   form.classList.add("hidden");
   cameraChoice.classList.add("hidden");
+  success.classList.add("hidden");
   welcome.classList.remove("hidden");
   progressBar.classList.add("hidden");
   progress.style.width = "0%";
 }
 
-// Envio com feedback de progresso
+// Envio com progresso
 form.onsubmit = (e) => {
   e.preventDefault();
 
-  // Honeypot check
-  const honey = form.querySelector('input[name="_honey"]').value;
-  if (honey) return; // Bot detectado, não enviar
-
-  const formData = new FormData(form);
+  if (form.querySelector('input[name="_honey"]').value) return;
 
   const xhr = new XMLHttpRequest();
   xhr.open("POST", form.action);
 
-  xhr.upload.onprogress = (event) => {
-    if (event.lengthComputable) {
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
       progressBar.classList.remove("hidden");
-      const percent = Math.round((event.loaded / event.total) * 100);
-      progress.style.width = percent + "%";
+      progress.style.width = (e.loaded / e.total) * 100 + "%";
     }
   };
 
   xhr.onload = () => {
     form.classList.add("hidden");
     success.classList.remove("hidden");
-    progressBar.classList.add("hidden");
-    progress.style.width = "0%";
 
-    // Volta automaticamente ao início após 5s
     setTimeout(() => {
       resetar();
       window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 5000);
+    }, 2000);
   };
 
-  xhr.onerror = () => {
-    alert("Erro no envio. Tente novamente.");
-  };
-
-  xhr.send(formData);
+  xhr.send(new FormData(form));
 };
 </script>
 </body>
