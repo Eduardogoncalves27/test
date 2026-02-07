@@ -34,6 +34,22 @@ button {
 .send { background: #2e7d32; color: #fff; }
 .retry { background: #e0e0e0; }
 .success { margin-top: 30px; font-size: 20px; color: #2e7d32; }
+.progress-bar {
+  width: 100%;
+  height: 16px;
+  background: #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+.progress {
+  height: 100%;
+  width: 0%;
+  background: #6a4bc3;
+  border-radius: 8px;
+  transition: width 0.3s;
+}
+.honeypot { display: none; }
 </style>
 </head>
 
@@ -47,14 +63,14 @@ button {
     Obrigado por celebrar conosco ❤️<br>
     Clique no botão abaixo para tirar sua foto ou gravar seu vídeo!
   </p>
-  <button id="startCamera" class="start">📸 Começar</button>
+  <button id="startCamera" class="start" aria-label="Começar captura">📸 Começar</button>
 </div>
 
 <!-- ESCOLHA DE CÂMERA -->
 <div id="cameraChoice" class="hidden">
   <p>Escolha a câmera:</p>
-  <button onclick="abrirCamera('user')">📷 Frontal</button>
-  <button onclick="abrirCamera('environment')">📸 Traseira</button>
+  <button onclick="abrirCamera('user')" aria-label="Câmera frontal">📷 Frontal</button>
+  <button onclick="abrirCamera('environment')" aria-label="Câmera traseira">📸 Traseira</button>
 </div>
 
 <!-- FORMULÁRIO -->
@@ -68,6 +84,9 @@ button {
   <input type="hidden" name="_captcha" value="false">
   <input type="hidden" name="_subject" value="Casamento Eduardo & Amanda - Mídia enviada">
 
+  <!-- Honeypot para bots -->
+  <input type="text" name="_honey" class="honeypot" tabindex="-1" autocomplete="off">
+
   <input
     id="file"
     type="file"
@@ -76,18 +95,24 @@ button {
     capture
     class="hidden"
     required
+    aria-label="Escolher arquivo de foto ou vídeo"
   >
 
-  <div id="preview" class="preview hidden"></div>
+  <div id="preview" class="preview hidden" aria-live="polite"></div>
 
   <div id="actions" class="hidden">
-    <button type="submit" class="send">📤 Enviar</button>
-    <button type="button" class="retry" onclick="resetar()">🔄 Refazer</button>
+    <button type="submit" class="send" aria-label="Enviar mídia">📤 Enviar</button>
+    <button type="button" class="retry" onclick="resetar()" aria-label="Refazer captura">🔄 Refazer</button>
+  </div>
+
+  <!-- Barra de progresso -->
+  <div class="progress-bar hidden">
+    <div class="progress" id="progress"></div>
   </div>
 </form>
 
 <!-- SUCESSO -->
-<div id="success" class="success hidden">
+<div id="success" class="success hidden" aria-live="polite">
   ✅ <strong>SALVO E ENVIADO!</strong><br><br>
   Muito obrigado por compartilhar esse momento especial 💖<br>
   Sua foto já pode aparecer na TV!
@@ -104,6 +129,8 @@ const actions = document.getElementById("actions");
 const welcome = document.getElementById("welcome");
 const success = document.getElementById("success");
 const form = document.getElementById("form");
+const progressBar = document.querySelector(".progress-bar");
+const progress = document.getElementById("progress");
 
 // Mostrar escolha de câmera após clique
 startButton.onclick = () => {
@@ -136,6 +163,7 @@ file.onchange = () => {
   if (f.type.startsWith("image")) {
     media = document.createElement("img");
     media.src = URL.createObjectURL(f);
+    media.alt = "Pré-visualização da foto enviada";
   } else {
     media = document.createElement("video");
     media.src = URL.createObjectURL(f);
@@ -157,15 +185,49 @@ function resetar() {
   form.classList.add("hidden");
   cameraChoice.classList.add("hidden");
   welcome.classList.remove("hidden");
+  progressBar.classList.add("hidden");
+  progress.style.width = "0%";
 }
 
-// Mensagem de sucesso e recarregar
-form.onsubmit = () => {
-  setTimeout(() => {
+// Envio com feedback de progresso
+form.onsubmit = (e) => {
+  e.preventDefault();
+
+  // Honeypot check
+  const honey = form.querySelector('input[name="_honey"]').value;
+  if (honey) return; // Bot detectado, não enviar
+
+  const formData = new FormData(form);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", form.action);
+
+  xhr.upload.onprogress = (event) => {
+    if (event.lengthComputable) {
+      progressBar.classList.remove("hidden");
+      const percent = Math.round((event.loaded / event.total) * 100);
+      progress.style.width = percent + "%";
+    }
+  };
+
+  xhr.onload = () => {
     form.classList.add("hidden");
     success.classList.remove("hidden");
-    setTimeout(() => location.reload(), 5000);
-  }, 1500);
+    progressBar.classList.add("hidden");
+    progress.style.width = "0%";
+
+    // Volta automaticamente ao início após 5s
+    setTimeout(() => {
+      resetar();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 5000);
+  };
+
+  xhr.onerror = () => {
+    alert("Erro no envio. Tente novamente.");
+  };
+
+  xhr.send(formData);
 };
 </script>
 </body>
