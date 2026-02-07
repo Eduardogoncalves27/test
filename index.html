@@ -22,11 +22,11 @@ button {
   width: 100%;
   padding: 16px;
   margin-top: 12px;
-  font-size: 16px;
-  border-radius: 10px;
+  font-size: 18px;
+  border-radius: 12px;
   border: none;
   cursor: pointer;
-  transition: transform 0.1s ease;
+  transition: transform 0.1s ease, background 0.2s ease;
 }
 button:active { transform: scale(0.97); }
 .start { background: #6a4bc3; color: #fff; }
@@ -34,9 +34,22 @@ button:active { transform: scale(0.97); }
 .retry { background: #e0e0e0; }
 .success { margin-top: 30px; font-size: 20px; color: #2e7d32; opacity: 0; transition: all 0.5s ease; }
 .success.show { opacity: 1; transform: translateY(0); }
-.slider-container { margin-top: 12px; text-align: left; }
+
+.slider-container { margin-top: 12px; text-align: left; display: none; }
 .slider-container label { display: block; font-size: 14px; margin-bottom: 4px; }
 .slider-container input[type=range] { width: 100%; }
+
+#focusReticle {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 60px; height: 60px;
+  margin-left: -30px; margin-top: -30px;
+  border: 2px solid #6a4bc3;
+  border-radius: 50%;
+  pointer-events: none;
+  transition: transform 0.2s ease;
+}
+#cameraWrapper { position: relative; }
 </style>
 </head>
 <body>
@@ -58,8 +71,11 @@ button:active { transform: scale(0.97); }
 
 <!-- Visualização da câmera -->
 <div id="cameraContainer" class="hidden">
-  <video id="cameraVideo" autoplay playsinline muted></video>
-  <div id="cameraControls" class="slider-container hidden">
+  <div id="cameraWrapper">
+    <video id="cameraVideo" autoplay playsinline muted></video>
+    <div id="focusReticle"></div>
+  </div>
+  <div id="cameraControls" class="slider-container">
     <label for="focusRange">Foco</label>
     <input type="range" id="focusRange" min="0" max="100" value="50">
     <label for="exposureRange">Sensibilidade (Exposição)</label>
@@ -106,46 +122,50 @@ const cameraControls = document.getElementById("cameraControls");
 const focusRange = document.getElementById("focusRange");
 const exposureRange = document.getElementById("exposureRange");
 const zoomRange = document.getElementById("zoomRange");
+const focusReticle = document.getElementById("focusReticle");
+const cameraWrapper = document.getElementById("cameraWrapper");
 
-// Fluxo inicial
+// Iniciar fluxo
 startButton.onclick = () => {
   document.getElementById("welcome").classList.add("hidden");
   cameraChoice.classList.remove("hidden");
 };
 
-// Abrir câmera frontal ou traseira
-async function abrirCamera(facing) {
+// Abrir câmera frontal/traseira
+async function abrirCamera(facing){
   cameraChoice.classList.add("hidden");
   cameraContainer.classList.remove("hidden");
-  try {
+  try{
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false });
     track = stream.getVideoTracks()[0];
     cameraVideo.srcObject = stream;
     cameraVideo.play().catch(console.log);
 
-    // Controles
     const capabilities = track.getCapabilities();
-    cameraControls.classList.remove("hidden");
+    cameraControls.style.display = "block";
+
     // Foco
     if(capabilities.focusDistance){
-      focusRange.min = capabilities.focusDistance.min;
-      focusRange.max = capabilities.focusDistance.max;
-      focusRange.step = capabilities.focusDistance.step || 0.01;
-      focusRange.value = (capabilities.focusDistance.min + capabilities.focusDistance.max)/2;
+      focusRange.min=capabilities.focusDistance.min;
+      focusRange.max=capabilities.focusDistance.max;
+      focusRange.step=capabilities.focusDistance.step||0.01;
+      focusRange.value=(capabilities.focusDistance.min+capabilities.focusDistance.max)/2;
     } else { focusRange.parentElement.style.display="none"; }
+
     // Exposição
     if(capabilities.exposureCompensation){
-      exposureRange.min = capabilities.exposureCompensation.min;
-      exposureRange.max = capabilities.exposureCompensation.max;
-      exposureRange.step = capabilities.exposureCompensation.step || 0.01;
-      exposureRange.value = 0;
+      exposureRange.min=capabilities.exposureCompensation.min;
+      exposureRange.max=capabilities.exposureCompensation.max;
+      exposureRange.step=capabilities.exposureCompensation.step||0.01;
+      exposureRange.value=0;
     } else { exposureRange.parentElement.style.display="none"; }
+
     // Zoom
     if(capabilities.zoom){
-      zoomRange.min = capabilities.zoom.min;
-      zoomRange.max = capabilities.zoom.max;
-      zoomRange.step = capabilities.zoom.step || 0.01;
-      zoomRange.value = 1;
+      zoomRange.min=capabilities.zoom.min;
+      zoomRange.max=capabilities.zoom.max;
+      zoomRange.step=capabilities.zoom.step||0.01;
+      zoomRange.value=1;
     } else { zoomRange.parentElement.style.display="none"; }
 
   } catch(err){
@@ -156,9 +176,18 @@ async function abrirCamera(facing) {
 }
 
 // Ajustes em tempo real
-focusRange.oninput = ()=>{ track?.applyConstraints({advanced:[{focusMode:"manual",focusDistance:parseFloat(focusRange.value)}]}).catch(console.log); }
-exposureRange.oninput = ()=>{ track?.applyConstraints({advanced:[{exposureMode:"manual",exposureCompensation:parseFloat(exposureRange.value)}]}).catch(console.log); }
-zoomRange.oninput = ()=>{ track?.applyConstraints({advanced:[{zoom:parseFloat(zoomRange.value)}]}).catch(console.log); }
+focusRange.oninput = ()=>{
+  track?.applyConstraints({advanced:[{focusMode:"manual",focusDistance:parseFloat(focusRange.value)}]}).catch(console.log);
+  // Movimentar retículo para feedback visual
+  const scale = 0.5 + parseFloat(focusRange.value)/100;
+  focusReticle.style.transform = `translate(-50%,-50%) scale(${scale})`;
+}
+
+exposureRange.oninput = ()=>{ track?.applyConstraints({advanced:[{exposureMode:"manual",exposureCompensation:parseFloat(exposureRange.value)}]}).catch(console.log);}
+zoomRange.oninput = ()=>{ 
+  track?.applyConstraints({advanced:[{zoom:parseFloat(zoomRange.value)}]}).catch(console.log); 
+  cameraVideo.style.transform = `scale(${zoomRange.value})`;
+}
 
 // Cancelar câmera
 function cancelarCamera(){ stopStream(); location.reload(); }
@@ -193,8 +222,8 @@ function resetar(){
   cameraContainer.scrollIntoView({behavior:"smooth"});
 }
 
-// Envio
-document.getElementById("sendButton").onclick = async ()=>{
+// Enviar
+document.getElementById("sendButton").onclick=async()=>{
   if(!mediaBlob) return alert("Nenhuma foto para enviar.");
   const formData=new FormData();
   formData.append("arquivo",mediaBlob,"foto.png");
