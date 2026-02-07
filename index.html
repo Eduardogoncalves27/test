@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Casamento Eduardo & Amanda</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(135deg, #f7f4ff, #ffffff);
+  color: #444;
+  text-align: center;
+  padding: 20px;
+}
+.container { max-width: 480px; margin: auto; }
+h1 { color: #6a4bc3; }
+p { font-size: 16px; line-height: 1.5; }
+.hidden { display: none; }
+video, img { width: 100%; border-radius: 12px; margin-top: 15px; }
+button {
+  width: 100%;
+  padding: 16px;
+  margin-top: 12px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+.start { background: #6a4bc3; color: #fff; }
+.send { background: #2e7d32; color: #fff; }
+.retry { background: #e0e0e0; }
+.back { background: #f57c00; color: #fff; }
+.success { margin-top: 30px; font-size: 20px; color: #2e7d32; transition: all 0.5s ease; opacity: 0; }
+.success.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<!-- BOAS-VINDAS -->
+<div id="welcome">
+  <h1>💍 Eduardo & Amanda</h1>
+  <p>
+    Obrigado por celebrar conosco ❤️<br>
+    Clique no botão abaixo para tirar sua foto ou gravar seu vídeo!
+  </p>
+  <button id="startCamera" class="start">📸 Começar</button>
+</div>
+
+<!-- ESCOLHA DE CÂMERA -->
+<div id="cameraChoice" class="hidden">
+  <p>Escolha a câmera:</p>
+  <button onclick="abrirCamera('user')">📷 Frontal</button>
+  <button onclick="abrirCamera('environment')">📸 Traseira</button>
+</div>
+
+<!-- VISUALIZAÇÃO DA CÂMERA -->
+<div id="cameraContainer" class="hidden">
+  <video id="cameraVideo" autoplay playsinline muted></video> <!-- muted garante que não há som local -->
+  <div id="cameraActions">
+    <button onclick="tirarFoto()">📸 Tirar Foto</button>
+    <button onclick="gravarVideo()">🎥 Gravar Vídeo</button>
+    <button onclick="cancelarCamera()">❌ Cancelar</button>
+  </div>
+</div>
+
+<!-- PRÉ-VISUALIZAÇÃO -->
+<div id="previewContainer" class="hidden">
+  <div id="preview"></div>
+  <div id="actions" class="hidden">
+    <button id="sendButton" class="send">📤 Enviar</button>
+    <button type="button" class="retry" onclick="resetar()">🔄 Refazer</button>
+    <button type="button" class="back" onclick="voltarCameraChoice()">⬅️ Mudar Câmera</button>
+  </div>
+</div>
+
+<!-- SUCESSO -->
+<div id="success" class="success">
+  ✅ <strong>SALVO E ENVIADO!</strong><br><br>
+  Muito obrigado por compartilhar esse momento especial 💖<br>
+  Sua foto já pode aparecer na TV!
+</div>
+
+</div>
+
+<script>
+let stream; // captura completa (áudio + vídeo)
+let mediaRecorder;
+let recordedChunks = [];
+let mediaBlob;
+const maxVideoTime = 15; // segundos
+
+const startButton = document.getElementById("startCamera");
+const cameraChoice = document.getElementById("cameraChoice");
+const cameraContainer = document.getElementById("cameraContainer");
+const cameraVideo = document.getElementById("cameraVideo");
+const previewContainer = document.getElementById("previewContainer");
+const preview = document.getElementById("preview");
+const actions = document.getElementById("actions");
+const success = document.getElementById("success");
+
+// Fluxo inicial
+startButton.onclick = () => {
+  document.getElementById("welcome").classList.add("hidden");
+  cameraChoice.classList.remove("hidden");
+};
+
+// Abrir câmera
+async function abrirCamera(facingMode) {
+  cameraChoice.classList.add("hidden");
+  cameraContainer.classList.remove("hidden");
+
+  try {
+    // Captura áudio + vídeo
+    stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: facingMode }, 
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+
+    // Cria stream só com vídeo para exibir localmente (sem som)
+    const videoOnlyStream = new MediaStream(stream.getVideoTracks());
+    cameraVideo.srcObject = videoOnlyStream;
+    cameraVideo.muted = true;
+  } catch (err) {
+    alert("Não foi possível acessar a câmera.");
+    location.reload();
+  }
+}
+
+// Cancelar câmera → recarregar
+function cancelarCamera() {
+  stopStream();
+  location.reload();
+}
+
+// Voltar para escolher câmera
+function voltarCameraChoice() {
+  stopStream();
+  previewContainer.classList.add("hidden");
+  actions.classList.add("hidden");
+  preview.innerHTML = "";
+  cameraChoice.classList.remove("hidden");
+}
+
+// Parar stream da câmera
+function stopStream() {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+}
+
+// Tirar foto
+function tirarFoto() {
+  const canvas = document.createElement("canvas");
+  canvas.width = cameraVideo.videoWidth;
+  canvas.height = cameraVideo.videoHeight;
+  canvas.getContext("2d").drawImage(cameraVideo, 0, 0);
+  
+  canvas.toBlob(blob => {
+    mediaBlob = blob;
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(blob);
+    mostrarPreview(img);
+  }, "image/png");
+
+  stopStream();
+}
+
+// Gravar vídeo
+function gravarVideo() {
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = e => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  };
+  mediaRecorder.onstop = () => {
+    mediaBlob = new Blob(recordedChunks, { type: "video/webm" });
+    const video = document.createElement("video");
+    video.src = URL.createObjectURL(mediaBlob);
+    video.controls = true;
+
+    mostrarPreview(video);
+  };
+
+  mediaRecorder.start();
+  setTimeout(() => {
+    if (mediaRecorder.state === "recording") mediaRecorder.stop();
+  }, maxVideoTime * 1000); // auto-stop 15s
+}
+
+// Mostrar pré-visualização
+function mostrarPreview(mediaElement) {
+  cameraContainer.classList.add("hidden");
+  previewContainer.classList.remove("hidden");
+  preview.innerHTML = "";
+  preview.appendChild(mediaElement);
+  actions.classList.remove("hidden");
+}
+
+// Resetar tudo
+function resetar() {
+  mediaBlob = null;
+  preview.innerHTML = "";
+  actions.classList.add("hidden");
+  previewContainer.classList.add("hidden");
+  cameraContainer.classList.add("hidden");
+  cameraChoice.classList.remove("hidden");
+}
+
+// Envio real para Formsubmit
+document.getElementById("sendButton").onclick = async () => {
+  if (!mediaBlob) return alert("Nenhuma mídia para enviar.");
+
+  const formData = new FormData();
+  formData.append("arquivo", mediaBlob, mediaBlob.type.startsWith("image") ? "foto.png" : "video.webm");
+  formData.append("_captcha", "false");
+  formData.append("_subject", "Casamento Eduardo & Amanda - Mídia enviada");
+
+  try {
+    await fetch("https://formsubmit.co/eduardo.goncalves27@gmail.com", {
+      method: "POST",
+      body: formData
+    });
+    previewContainer.classList.add("hidden");
+    actions.classList.add("hidden");
+    success.classList.add("show");
+    setTimeout(() => location.reload(), 2000);
+  } catch (err) {
+    alert("Erro ao enviar. Tente novamente.");
+  }
+};
+</script>
+</body>
+</html>
