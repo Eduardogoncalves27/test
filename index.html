@@ -147,7 +147,6 @@ async function abrirCamera(facingMode) {
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
 
-    // Apenas vídeo para preview, garante autoplay sem travar
     const videoOnlyStream = new MediaStream(stream.getVideoTracks());
     cameraVideo.srcObject = videoOnlyStream;
     cameraVideo.muted = true;
@@ -198,16 +197,21 @@ startRecordingButton.onclick = () => {
   mediaRecorder.ondataavailable = e => {
     if (e.data.size > 0) recordedChunks.push(e.data);
   };
+
   mediaRecorder.onstop = () => {
     mediaBlob = new Blob(recordedChunks, { type: "video/webm" });
     const video = document.createElement("video");
-    video.src = URL.createObjectURL(mediaBlob);
-    video.controls = true;   // usuário aperta play
-    video.autoplay = false;  // NÃO autoplay
+    video.controls = true;    // permite play
+    video.autoplay = false;   // sem autoplay
     video.playsInline = true;
-    video.muted = false;     // áudio real
-    video.load();            // garante que o vídeo seja carregado
-    mostrarPreview(video);
+    video.muted = false;
+
+    // Delay mínimo para garantir que o blob seja carregado corretamente
+    setTimeout(() => {
+      video.src = URL.createObjectURL(mediaBlob);
+      video.load();
+      mostrarPreview(video);
+    }, 50);
   };
 
   mediaRecorder.start();
