@@ -22,11 +22,11 @@ button {
   width: 100%;
   padding: 16px;
   margin-top: 12px;
-  font-size: 18px;
-  border-radius: 12px;
+  font-size: 16px;
+  border-radius: 10px;
   border: none;
   cursor: pointer;
-  transition: transform 0.1s ease, background 0.2s ease;
+  transition: transform 0.1s ease;
 }
 button:active { transform: scale(0.97); }
 .start { background: #6a4bc3; color: #fff; }
@@ -34,22 +34,6 @@ button:active { transform: scale(0.97); }
 .retry { background: #e0e0e0; }
 .success { margin-top: 30px; font-size: 20px; color: #2e7d32; opacity: 0; transition: all 0.5s ease; }
 .success.show { opacity: 1; transform: translateY(0); }
-
-.slider-container { margin-top: 12px; text-align: left; display: none; }
-.slider-container label { display: block; font-size: 14px; margin-bottom: 4px; }
-.slider-container input[type=range] { width: 100%; }
-
-#focusReticle {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 60px; height: 60px;
-  margin-left: -30px; margin-top: -30px;
-  border: 2px solid #6a4bc3;
-  border-radius: 50%;
-  pointer-events: none;
-  transition: transform 0.2s ease;
-}
-#cameraWrapper { position: relative; }
 </style>
 </head>
 <body>
@@ -69,21 +53,10 @@ button:active { transform: scale(0.97); }
   <button onclick="abrirCamera('environment')">📸 Traseira</button>
 </div>
 
-<!-- Visualização da câmera -->
+<!-- Câmera ativa -->
 <div id="cameraContainer" class="hidden">
-  <div id="cameraWrapper">
-    <video id="cameraVideo" autoplay playsinline muted></video>
-    <div id="focusReticle"></div>
-  </div>
-  <div id="cameraControls" class="slider-container">
-    <label for="focusRange">Foco</label>
-    <input type="range" id="focusRange" min="0" max="100" value="50">
-    <label for="exposureRange">Sensibilidade (Exposição)</label>
-    <input type="range" id="exposureRange" min="0" max="100" value="50">
-    <label for="zoomRange">Zoom</label>
-    <input type="range" id="zoomRange" min="1" max="1" value="1" step="0.01">
-  </div>
-  <div id="cameraActions">
+  <video id="cameraVideo" autoplay playsinline muted></video>
+  <div>
     <button id="takePhotoButton">📸 Tirar Foto</button>
     <button onclick="cancelarCamera()">❌ Cancelar</button>
   </div>
@@ -108,7 +81,8 @@ button:active { transform: scale(0.97); }
 </div>
 
 <script>
-let stream, track, mediaBlob;
+let stream, mediaBlob;
+
 const startButton = document.getElementById("startCamera");
 const cameraChoice = document.getElementById("cameraChoice");
 const cameraContainer = document.getElementById("cameraContainer");
@@ -118,56 +92,21 @@ const preview = document.getElementById("preview");
 const actions = document.getElementById("actions");
 const success = document.getElementById("success");
 const takePhotoButton = document.getElementById("takePhotoButton");
-const cameraControls = document.getElementById("cameraControls");
-const focusRange = document.getElementById("focusRange");
-const exposureRange = document.getElementById("exposureRange");
-const zoomRange = document.getElementById("zoomRange");
-const focusReticle = document.getElementById("focusReticle");
-const cameraWrapper = document.getElementById("cameraWrapper");
 
-// Iniciar fluxo
+// Fluxo inicial
 startButton.onclick = () => {
   document.getElementById("welcome").classList.add("hidden");
   cameraChoice.classList.remove("hidden");
 };
 
-// Abrir câmera frontal/traseira
+// Abrir câmera automaticamente usando getUserMedia
 async function abrirCamera(facing){
   cameraChoice.classList.add("hidden");
   cameraContainer.classList.remove("hidden");
-  try{
+  try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false });
-    track = stream.getVideoTracks()[0];
     cameraVideo.srcObject = stream;
-    cameraVideo.play().catch(console.log);
-
-    const capabilities = track.getCapabilities();
-    cameraControls.style.display = "block";
-
-    // Foco
-    if(capabilities.focusDistance){
-      focusRange.min=capabilities.focusDistance.min;
-      focusRange.max=capabilities.focusDistance.max;
-      focusRange.step=capabilities.focusDistance.step||0.01;
-      focusRange.value=(capabilities.focusDistance.min+capabilities.focusDistance.max)/2;
-    } else { focusRange.parentElement.style.display="none"; }
-
-    // Exposição
-    if(capabilities.exposureCompensation){
-      exposureRange.min=capabilities.exposureCompensation.min;
-      exposureRange.max=capabilities.exposureCompensation.max;
-      exposureRange.step=capabilities.exposureCompensation.step||0.01;
-      exposureRange.value=0;
-    } else { exposureRange.parentElement.style.display="none"; }
-
-    // Zoom
-    if(capabilities.zoom){
-      zoomRange.min=capabilities.zoom.min;
-      zoomRange.max=capabilities.zoom.max;
-      zoomRange.step=capabilities.zoom.step||0.01;
-      zoomRange.value=1;
-    } else { zoomRange.parentElement.style.display="none"; }
-
+    cameraVideo.play();
   } catch(err){
     console.error(err);
     alert("Não foi possível acessar a câmera.");
@@ -175,67 +114,63 @@ async function abrirCamera(facing){
   }
 }
 
-// Ajustes em tempo real
-focusRange.oninput = ()=>{
-  track?.applyConstraints({advanced:[{focusMode:"manual",focusDistance:parseFloat(focusRange.value)}]}).catch(console.log);
-  // Movimentar retículo para feedback visual
-  const scale = 0.5 + parseFloat(focusRange.value)/100;
-  focusReticle.style.transform = `translate(-50%,-50%) scale(${scale})`;
-}
-
-exposureRange.oninput = ()=>{ track?.applyConstraints({advanced:[{exposureMode:"manual",exposureCompensation:parseFloat(exposureRange.value)}]}).catch(console.log);}
-zoomRange.oninput = ()=>{ 
-  track?.applyConstraints({advanced:[{zoom:parseFloat(zoomRange.value)}]}).catch(console.log); 
-  cameraVideo.style.transform = `scale(${zoomRange.value})`;
-}
-
-// Cancelar câmera
-function cancelarCamera(){ stopStream(); location.reload(); }
-function stopStream(){ stream?.getTracks().forEach(t=>t.stop()); stream=null; track=null; }
-
 // Tirar foto
 takePhotoButton.onclick = ()=>{
-  const canvas=document.createElement("canvas");
-  canvas.width=cameraVideo.videoWidth;
-  canvas.height=cameraVideo.videoHeight;
+  const canvas = document.createElement("canvas");
+  canvas.width = cameraVideo.videoWidth;
+  canvas.height = cameraVideo.videoHeight;
   canvas.getContext("2d").drawImage(cameraVideo,0,0);
   canvas.toBlob(blob=>{
-    mediaBlob=blob;
-    const img=document.createElement("img");
-    img.src=URL.createObjectURL(blob);
+    mediaBlob = blob;
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(blob);
     previewContainer.classList.remove("hidden");
-    preview.innerHTML="";
+    preview.innerHTML = "";
     preview.appendChild(img);
     actions.classList.remove("hidden");
     cameraContainer.classList.add("hidden");
     stopStream();
-  },"image/png");
+  }, "image/png");
 }
 
 // Resetar
 function resetar(){
-  mediaBlob=null;
-  preview.innerHTML="";
+  mediaBlob = null;
+  preview.innerHTML = "";
   actions.classList.add("hidden");
   previewContainer.classList.add("hidden");
   cameraContainer.classList.remove("hidden");
   cameraContainer.scrollIntoView({behavior:"smooth"});
 }
 
+// Cancelar câmera
+function cancelarCamera(){
+  stopStream();
+  location.reload();
+}
+
+// Parar fluxo
+function stopStream(){
+  stream?.getTracks().forEach(track => track.stop());
+  stream = null;
+}
+
 // Enviar
-document.getElementById("sendButton").onclick=async()=>{
+document.getElementById("sendButton").onclick = async ()=>{
   if(!mediaBlob) return alert("Nenhuma foto para enviar.");
-  const formData=new FormData();
-  formData.append("arquivo",mediaBlob,"foto.png");
-  formData.append("_captcha","false");
-  formData.append("_subject","Casamento Eduardo & Amanda - Foto enviada");
+  const formData = new FormData();
+  formData.append("arquivo", mediaBlob, "foto.png");
+  formData.append("_captcha", "false");
+  formData.append("_subject", "Casamento Eduardo & Amanda - Foto enviada");
   try{
-    await fetch("https://formsubmit.co/eduardo.goncalves27@gmail.com",{method:"POST",body:formData});
+    await fetch("https://formsubmit.co/eduardo.goncalves27@gmail.com",{method:"POST", body:formData});
     previewContainer.classList.add("hidden");
     actions.classList.add("hidden");
     success.classList.add("show");
     setTimeout(()=>location.reload(),2000);
-  }catch(err){ alert("Erro ao enviar. Tente novamente."); }
+  } catch(err){
+    alert("Erro ao enviar. Tente novamente.");
+  }
 };
 </script>
 </body>
