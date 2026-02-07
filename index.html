@@ -1,5 +1,3 @@
-volte para esse codigo
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -57,7 +55,6 @@ button {
 <body>
 <div class="container">
 
-<!-- BOAS-VINDAS -->
 <div id="welcome">
   <h1>💍 Eduardo & Amanda</h1>
   <p>
@@ -67,14 +64,12 @@ button {
   <button id="startCamera" class="start">📸 Começar</button>
 </div>
 
-<!-- ESCOLHA DE CÂMERA -->
 <div id="cameraChoice" class="hidden">
   <p>Escolha a câmera:</p>
   <button onclick="abrirCamera('user')">📷 Frontal</button>
   <button onclick="abrirCamera('environment')">📸 Traseira</button>
 </div>
 
-<!-- FORMULÁRIO -->
 <form
   id="form"
   action="https://formsubmit.co/eduardo.goncalves27@gmail.com"
@@ -84,10 +79,7 @@ button {
 >
   <input type="hidden" name="_captcha" value="false">
   <input type="hidden" name="_subject" value="Casamento Eduardo & Amanda - Mídia enviada">
-
-  <!-- Honeypot -->
   <input type="text" name="_honey" class="honeypot" tabindex="-1" autocomplete="off">
-
   <input
     id="file"
     type="file"
@@ -99,7 +91,6 @@ button {
   >
 
   <div id="preview" class="preview hidden"></div>
-
   <div id="actions" class="hidden">
     <button type="submit" class="send">📤 Enviar</button>
     <button type="button" class="retry" onclick="resetar()">🔄 Refazer</button>
@@ -110,7 +101,6 @@ button {
   </div>
 </form>
 
-<!-- SUCESSO -->
 <div id="success" class="success hidden">
   ✅ <strong>SALVO E ENVIADO!</strong><br><br>
   Muito obrigado por compartilhar esse momento especial 💖<br>
@@ -137,10 +127,8 @@ startButton.onclick = () => {
   cameraChoice.classList.remove("hidden");
 };
 
-// Abrir câmera
+// Abrir câmera (mantém escolha visível até arquivo ser selecionado)
 function abrirCamera(facingMode) {
-  cameraChoice.classList.add("hidden");
-  form.classList.remove("hidden");
   file.setAttribute("capture", facingMode);
   file.click();
 }
@@ -149,11 +137,14 @@ function abrirCamera(facingMode) {
 file.onchange = () => {
   const f = file.files[0];
 
-  // Cancelou
+  // Cancelou → mantém a tela de escolha visível
   if (!f) {
-    resetar();
     return;
   }
+
+  // Esconde escolha da câmera e mostra formulário
+  cameraChoice.classList.add("hidden");
+  form.classList.remove("hidden");
 
   if (f.size > 30 * 1024 * 1024) {
     alert("O arquivo deve ter no máximo 30MB.");
