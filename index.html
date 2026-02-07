@@ -1,3 +1,5 @@
+volte para esse codigo
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -135,9 +137,10 @@ startButton.onclick = () => {
   cameraChoice.classList.remove("hidden");
 };
 
-// Abrir câmera (página fica em segundo plano)
+// Abrir câmera
 function abrirCamera(facingMode) {
   cameraChoice.classList.add("hidden");
+  form.classList.remove("hidden");
   file.setAttribute("capture", facingMode);
   file.click();
 }
@@ -151,9 +154,6 @@ file.onchange = () => {
     resetar();
     return;
   }
-
-  // Agora o formulário aparece
-  form.classList.remove("hidden");
 
   if (f.size > 30 * 1024 * 1024) {
     alert("O arquivo deve ter no máximo 30MB.");
