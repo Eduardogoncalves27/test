@@ -22,8 +22,8 @@ button {
   width: 100%;
   padding: 16px;
   margin-top: 12px;
-  font-size: 16px;
-  border-radius: 10px;
+  font-size: 18px;
+  border-radius: 12px;
   border: none;
   cursor: pointer;
   transition: transform 0.1s ease;
@@ -34,6 +34,19 @@ button:active { transform: scale(0.97); }
 .retry { background: #e0e0e0; }
 .success { margin-top: 30px; font-size: 20px; color: #2e7d32; opacity: 0; transition: all 0.5s ease; }
 .success.show { opacity: 1; transform: translateY(0); }
+#cameraWrapper { position: relative; }
+#shutterButton {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: #6a4bc3;
+  border: 4px solid #fff;
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -53,13 +66,13 @@ button:active { transform: scale(0.97); }
   <button onclick="abrirCamera('environment')">📸 Traseira</button>
 </div>
 
-<!-- Câmera ativa -->
+<!-- Câmera -->
 <div id="cameraContainer" class="hidden">
-  <video id="cameraVideo" autoplay playsinline muted></video>
-  <div>
-    <button id="takePhotoButton">📸 Tirar Foto</button>
-    <button onclick="cancelarCamera()">❌ Cancelar</button>
+  <div id="cameraWrapper">
+    <video id="cameraVideo" autoplay playsinline muted></video>
+    <div id="shutterButton" onclick="tirarFoto()"></div>
   </div>
+  <button onclick="cancelarCamera()" style="margin-top: 12px;">❌ Cancelar</button>
 </div>
 
 <!-- Pré-visualização -->
@@ -67,7 +80,7 @@ button:active { transform: scale(0.97); }
   <div id="preview"></div>
   <div id="actions" class="hidden">
     <button id="sendButton" class="send">📤 Enviar</button>
-    <button type="button" class="retry" onclick="resetar()">🔄 Refazer</button>
+    <button type="button" class="retry" onclick="refazerFoto()">🔄 Refazer</button>
   </div>
 </div>
 
@@ -91,23 +104,22 @@ const previewContainer = document.getElementById("previewContainer");
 const preview = document.getElementById("preview");
 const actions = document.getElementById("actions");
 const success = document.getElementById("success");
-const takePhotoButton = document.getElementById("takePhotoButton");
 
-// Fluxo inicial
+// Iniciar fluxo
 startButton.onclick = () => {
   document.getElementById("welcome").classList.add("hidden");
   cameraChoice.classList.remove("hidden");
 };
 
-// Abrir câmera automaticamente usando getUserMedia
+// Abrir câmera com getUserMedia
 async function abrirCamera(facing){
   cameraChoice.classList.add("hidden");
   cameraContainer.classList.remove("hidden");
-  try {
+  try{
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false });
     cameraVideo.srcObject = stream;
     cameraVideo.play();
-  } catch(err){
+  }catch(err){
     console.error(err);
     alert("Não foi possível acessar a câmera.");
     location.reload();
@@ -115,7 +127,7 @@ async function abrirCamera(facing){
 }
 
 // Tirar foto
-takePhotoButton.onclick = ()=>{
+function tirarFoto(){
   const canvas = document.createElement("canvas");
   canvas.width = cameraVideo.videoWidth;
   canvas.height = cameraVideo.videoHeight;
@@ -133,14 +145,16 @@ takePhotoButton.onclick = ()=>{
   }, "image/png");
 }
 
-// Resetar
-function resetar(){
+// Refazer foto
+function refazerFoto(){
   mediaBlob = null;
   preview.innerHTML = "";
   actions.classList.add("hidden");
   previewContainer.classList.add("hidden");
   cameraContainer.classList.remove("hidden");
   cameraContainer.scrollIntoView({behavior:"smooth"});
+  // Reabrir câmera
+  reabrirCamera();
 }
 
 // Cancelar câmera
@@ -149,28 +163,37 @@ function cancelarCamera(){
   location.reload();
 }
 
-// Parar fluxo
+// Parar câmera
 function stopStream(){
-  stream?.getTracks().forEach(track => track.stop());
+  stream?.getTracks().forEach(track=>track.stop());
   stream = null;
 }
 
-// Enviar
+// Reabrir câmera para refazer
+async function reabrirCamera(){
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    cameraVideo.srcObject = stream;
+    cameraVideo.play();
+  }catch(err){
+    console.error(err);
+  }
+}
+
+// Enviar foto
 document.getElementById("sendButton").onclick = async ()=>{
   if(!mediaBlob) return alert("Nenhuma foto para enviar.");
   const formData = new FormData();
   formData.append("arquivo", mediaBlob, "foto.png");
-  formData.append("_captcha", "false");
-  formData.append("_subject", "Casamento Eduardo & Amanda - Foto enviada");
+  formData.append("_captcha","false");
+  formData.append("_subject","Casamento Eduardo & Amanda - Foto enviada");
   try{
     await fetch("https://formsubmit.co/eduardo.goncalves27@gmail.com",{method:"POST", body:formData});
     previewContainer.classList.add("hidden");
     actions.classList.add("hidden");
     success.classList.add("show");
     setTimeout(()=>location.reload(),2000);
-  } catch(err){
-    alert("Erro ao enviar. Tente novamente.");
-  }
+  }catch(err){ alert("Erro ao enviar. Tente novamente."); }
 };
 </script>
 </body>
