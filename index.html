@@ -185,9 +185,8 @@ takePhotoButton.onclick = () => {
     const img = document.createElement("img");
     img.src = URL.createObjectURL(blob);
     mostrarPreview(img);
+    stopStream(); // parar só depois que a pré-visualização foi criada
   }, "image/png");
-
-  stopStream();
 }
 
 // Iniciar gravação
@@ -200,18 +199,22 @@ startRecordingButton.onclick = () => {
 
   mediaRecorder.onstop = () => {
     mediaBlob = new Blob(recordedChunks, { type: "video/webm" });
+
     const video = document.createElement("video");
-    video.controls = true;    // permite play
-    video.autoplay = false;   // sem autoplay
+    video.controls = true;
+    video.autoplay = false;
     video.playsInline = true;
     video.muted = false;
 
-    // Delay mínimo para garantir que o blob seja carregado corretamente
-    setTimeout(() => {
-      video.src = URL.createObjectURL(mediaBlob);
-      video.load();
-      mostrarPreview(video);
-    }, 50);
+    // Criar URL do blob
+    const blobUrl = URL.createObjectURL(mediaBlob);
+    video.src = blobUrl;
+
+    // Mostrar preview ANTES de parar a câmera
+    mostrarPreview(video);
+
+    // Agora sim podemos parar a câmera
+    stopStream();
   };
 
   mediaRecorder.start();
@@ -237,7 +240,6 @@ function stopRecording() {
     recordingStatus.classList.add("hidden");
     startRecordingButton.disabled = false;
     takePhotoButton.disabled = false;
-    stopStream();
   }
 }
 
