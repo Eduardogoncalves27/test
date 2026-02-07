@@ -136,7 +136,7 @@ startButton.onclick = () => {
   cameraChoice.classList.remove("hidden");
 };
 
-// Abrir câmera (funciona em mobile/desktop)
+// Abrir câmera
 async function abrirCamera(facingMode) {
   cameraChoice.classList.add("hidden");
   cameraContainer.classList.remove("hidden");
@@ -147,7 +147,7 @@ async function abrirCamera(facingMode) {
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
 
-    // Apenas vídeo para preview, garante autoplay
+    // Apenas vídeo para preview, garante autoplay sem travar
     const videoOnlyStream = new MediaStream(stream.getVideoTracks());
     cameraVideo.srcObject = videoOnlyStream;
     cameraVideo.muted = true;
@@ -202,11 +202,11 @@ startRecordingButton.onclick = () => {
     mediaBlob = new Blob(recordedChunks, { type: "video/webm" });
     const video = document.createElement("video");
     video.src = URL.createObjectURL(mediaBlob);
-    video.controls = true;
-    video.autoplay = true;
+    video.controls = true;   // usuário aperta play
+    video.autoplay = false;  // NÃO autoplay
     video.playsInline = true;
-    video.muted = false;
-    video.load(); // garante carregamento
+    video.muted = false;     // áudio real
+    video.load();            // garante que o vídeo seja carregado
     mostrarPreview(video);
   };
 
