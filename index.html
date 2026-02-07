@@ -136,19 +136,18 @@ startButton.onclick = () => {
   cameraChoice.classList.remove("hidden");
 };
 
-// Abrir câmera (corrigido para evitar travamento)
+// Abrir câmera (funciona em mobile/desktop)
 async function abrirCamera(facingMode) {
   cameraChoice.classList.add("hidden");
   cameraContainer.classList.remove("hidden");
 
   try {
-    // Captura vídeo + áudio após clique do usuário
     stream = await navigator.mediaDevices.getUserMedia({ 
       video: { facingMode: facingMode }, 
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
 
-    // Stream apenas de vídeo para exibição (garante autoplay sem travar)
+    // Apenas vídeo para preview, garante autoplay
     const videoOnlyStream = new MediaStream(stream.getVideoTracks());
     cameraVideo.srcObject = videoOnlyStream;
     cameraVideo.muted = true;
@@ -167,7 +166,7 @@ function cancelarCamera() {
   location.reload();
 }
 
-// Parar stream da câmera
+// Parar stream
 function stopStream() {
   if (stream) {
     stream.getTracks().forEach(track => track.stop());
@@ -204,6 +203,10 @@ startRecordingButton.onclick = () => {
     const video = document.createElement("video");
     video.src = URL.createObjectURL(mediaBlob);
     video.controls = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = false;
+    video.load(); // garante carregamento
     mostrarPreview(video);
   };
 
@@ -221,9 +224,8 @@ startRecordingButton.onclick = () => {
   }, 1000);
 }
 
-// Parar gravação manual ou quando acabar o tempo
+// Parar gravação
 stopRecordingButton.onclick = stopRecording;
-
 function stopRecording() {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     mediaRecorder.stop();
@@ -244,7 +246,7 @@ function mostrarPreview(mediaElement) {
   actions.classList.remove("hidden");
 }
 
-// Resetar tudo
+// Resetar
 function resetar() {
   mediaBlob = null;
   preview.innerHTML = "";
@@ -254,7 +256,7 @@ function resetar() {
   cameraChoice.classList.remove("hidden");
 }
 
-// Envio real para Formsubmit
+// Envio para Formsubmit
 document.getElementById("sendButton").onclick = async () => {
   if (!mediaBlob) return alert("Nenhuma mídia para enviar.");
 
